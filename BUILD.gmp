@@ -1,0 +1,12 @@
+{
+"type":"shared",
+"exludes":["example","uimports"],
+"srcdirs":["deps","src"],
+"defines":["_CRT_SECURE_NO_WARNINGS"],
+
+"test-server":{
+"target":"test-server",
+"type":"app",
+"srcdirs":["test-server"]
+}
+}

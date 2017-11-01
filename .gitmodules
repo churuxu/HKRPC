@@ -1,0 +1,3 @@
+[submodule "deps/mhcode"]
+	path = deps/mhcode
+	url = https://github.com/churuxu/mhcode
