@@ -30,23 +30,23 @@ packet{
 <-- { "result": ["hello","world"], "id": "1"}
 ```
 
-### 监听目标函数调用
+### 创建hook，监听目标函数|内存地址调用
 
-- 参数：模块名，函数名|整数地址，参数类型表，参数栈偏移(可选)
+- 参数：模块名，函数名|整数地址，内存数据类型表，内存地址表达式(可选)
 - 返回：hook id
 ```
---> { "method": "hook", "params": ["user32.dll", "MessageBoxA", ["intptr","string","string","int"],[4,8,12,16]], "id": "OnMessageBox"} 
+--> { "method": "hook", "params": ["user32.dll", "MessageBoxA", ["intptr","string","string","int"],["[esp+4]","[esp+8]","[esp+12]","[esp+16]"]], "id": "OnMessageBox"} 
 <-- { "result": 321321, "id": "OnMessageBox"}  
 ```
  
-### 通知函数被调用 
+### 通知hook被调用 
 
 - 参数：调用该函数的参数值
 ```
 <-- { "method": "hook_notify", "params": [642618,"hello","world",0], "requestid":"OnMessageBox"} 
 ```
 
-### 取消函数监听
+### 取消hook
 
 - 参数：hook id
 ```
@@ -54,7 +54,7 @@ packet{
 <-- { "result": "ok", "id": "111"}  
 ```
 
-### 调用目标函数
+### 调用目标函数|内存地址
 
 - 参数：模块名，函数名|整数地址，调用约定，参数表，参数类型表(可选)，返回类型(可选)
 - 返回：调用该函数的返回值
