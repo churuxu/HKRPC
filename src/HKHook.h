@@ -16,7 +16,7 @@ public:
 	
 	void AddParamType(const String& type);
 
-	void AddParamOffset(int offset);
+	void AddParamOffset(const String& offset);
 
 	void MakeDefaultOffset();
 
@@ -24,8 +24,8 @@ public:
 
 	void SerResultHandler(FileterResultHandler handler);
 protected:
-	std::vector<String> paramtypes_;
-	std::vector<int> paramoffsets_;
+	std::vector<String> paramtypes_;  //数据类型
+	std::vector<String> paramexps_;  //数据寄存器表达式 例如esp+4
 	FileterResultHandler onresult_;
 	HKHook* hook_;
 };

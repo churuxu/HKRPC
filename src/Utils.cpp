@@ -1,7 +1,7 @@
 
 #include "Utils.h"
 #include <tlhelp32.h>
-
+#include <string.h>
 
 String Utils::EncodeString(const String& str) {
 	String result;
@@ -183,9 +183,88 @@ void* Utils::GetFunctionAddress(const char* dllname, const char* funcname) {
 	return NULL;
 }
 
+static bool get_x86_register_value(mhcode_context_x86* regs, const char* exp, intptr_t* out) {
+	intptr_t reg = 0;
+	if (exp[0] != 'e')return 0;
+	switch (exp[1]) {
+	case 's': //esp esi
+		switch (exp[2]) {
+		case 'p':reg = regs->esp; break;
+		case 'i':reg = regs->esi; break;
+		default:return false;
+		}
+		break;
+	case 'a': //eax
+		switch (exp[2]) {
+		case 'x':reg = regs->eax; break;
+		default:return false;
+		}
+		break;
+	case 'b': //ebx ebp
+		switch (exp[2]) {
+		case 'p':reg = regs->ebp; break;
+		case 'x':reg = regs->ebx; break;
+		default:return false;
+		}
+		break;
+	case 'c': //ecx 
+		switch (exp[2]) {
+		case 'x':reg = regs->ecx; break;
+		default:return false;
+		}
+		break;
+	case 'd': //edx edi
+		switch (exp[2]) {
+		case 'x':reg = regs->edx; break;
+		case 'i':reg = regs->edi; break;
+		default:return false;
+		}
+		break;
+	default:return false;
+	}
+	*out = reg;
+	return true;
+}
+
+intptr_t Utils::GetMemoryValue(void* ctx, const char* exp) {
+	intptr_t result = 0;
+	
+	mhcode_context_x86* regs = (mhcode_context_x86*)ctx;
+	if (!exp)return 0;
+	intptr_t reg = 0;
+	if (exp[0] == '[') {
+		exp++;
+	}
+	if (!get_x86_register_value(regs, exp, &reg))return 0;
+	if (exp[3] == ']') {
+		reg = *(intptr_t*)reg;
+		exp++;
+	}
+	char* end = NULL;
+	if (exp[3] == '+') {
+		int offset = strtol(exp + 4, &end, 10);
+		result = reg + offset;
+	}else if (exp[3] == '-') {
+		int offset = strtol(exp + 4, &end, 10);
+		result = reg - offset;
+	}else {
+		result = reg;
+	}
+	if (end && end[0] == ']') {
+		result = *(intptr_t*)result;
+	}
+	return result;
+}
+
 
 String Utils::ToJsonFormat(intptr_t val, const String& type) {
 	String ret;	
+	if (!type.length())return ret;
+	if (type[type.length() - 1] == '*') {
+		intptr_t* pval = (intptr_t*)val;
+		String newtype = type.substr(0, type.length() - 1);
+		return ToJsonFormat(*pval, newtype);
+	}
 	if (_stricmp(type.c_str(),"string")==0) {
 		ret += "\"";
 		if (val) {

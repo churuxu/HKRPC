@@ -283,7 +283,7 @@ String ProcessHookRequest(ConnectionPtr conn, json_value* id, json_value* params
 	if (offsets) {
 		int count = offsets->u.array.length;
 		for (int i = 0; i < count; i++) {
-			int val = (int)(json_int_t)*offsets->u.array.values[i];
+			const char* val = *offsets->u.array.values[i];
 			filter->AddParamOffset(val);
 		}
 	}

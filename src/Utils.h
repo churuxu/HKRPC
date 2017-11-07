@@ -27,6 +27,9 @@ public:
 
 	static void* GetFunctionAddress(const char* dllname, const char* funcname);
 
+	//ctx, ebp+8
+	static intptr_t GetMemoryValue(void* ctx, const char* exp);
+
 	static String ToJsonFormat(intptr_t val, const String& type);
 
 	static String GetModuleVersion(const char* dllname);

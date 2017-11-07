@@ -71,7 +71,7 @@ void HKHookFilter::Process(void* ctx) {
 	bool first = true;
 	for (size_t i = 0; i < paramtypes_.size();i++) {
 		if (i>0) jsonstr += ",";	
-		intptr_t val = mhcode_get_stack_value(ctx, paramoffsets_[i]);
+		intptr_t val = Utils::GetMemoryValue(ctx, paramexps_[i].c_str());
 		jsonstr += Utils::ToJsonFormat(val, paramtypes_[i]);
 	}
 	jsonstr += "]";
@@ -85,14 +85,19 @@ void HKHookFilter::AddParamType(const String& type) {
 	paramtypes_.push_back(type);
 }
 
-void HKHookFilter::AddParamOffset(int offset) {
-	paramoffsets_.push_back(offset);
+void HKHookFilter::AddParamOffset(const String& offset) {
+	paramexps_.push_back(offset);
 }
 
-void HKHookFilter::MakeDefaultOffset() {	
+void HKHookFilter::MakeDefaultOffset() {
+	char buf[32] = {'[','e','s','p','+',0 };
 	for (size_t i = 0; i < paramtypes_.size(); i++) {
 		int offset = ((i+1) * 4);
-		paramoffsets_.push_back(offset);
+		_itoa(offset, &(buf[5]), 10);
+		int len = strlen(&(buf[5]));
+		buf[len + 5] = ']';
+		buf[len + 6] = 0;
+		paramexps_.push_back(buf);
 	}
 }
 
