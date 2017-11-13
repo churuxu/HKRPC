@@ -212,6 +212,30 @@ String ProcessModuleVersionRequest(ConnectionPtr conn, json_value* id, json_valu
 	return MakeResultResponse(result.c_str(), id);
 }
 
+//获取dll信息
+String ProcessModuleInfoRequest(ConnectionPtr conn, json_value* id, json_value* params) {
+	int argc = params->u.array.length;
+	if (argc < 1)return MakeErrorResponse(-32600, "Invalid Request, no enough params", id);
+	const char* mod = *params->u.array.values[0];
+	void* base = Utils::GetModuleBaseAddress(mod);
+	if (!base) {
+		return MakeErrorResponse(-1, "can not find module ", id);
+	}
+	String ver = Utils::GetModuleVersion(mod);
+	uintptr_t baseval = (uintptr_t)base;
+
+	String result;
+	result += "{\"name\":\"";
+	result += Utils::EncodeString(mod);
+	result += "\",\"base\":";
+	result += std::to_string(baseval);
+	result += ",\"version\":\"";
+	result += ver;
+	result += "\"}";
+	return MakeResultResponse(result.c_str(), id);
+}
+
+
 //hook|call协议中，获取地址值
 void* GetAddressParam(json_value* params) {
 	void* addr = NULL;
@@ -503,6 +527,7 @@ bool HKManager::init() {
 	methods_["hook_delete"] = ProcessHookDeleteRequest;
 	methods_["call"] = ProcessCallRequest;
 	methods_["module_version"] = ProcessModuleVersionRequest;
+	methods_["module_info"] = ProcessModuleInfoRequest;
 
 	//启动服务
 	server_ = HKServer::getInstance();
