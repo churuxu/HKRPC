@@ -154,25 +154,7 @@ void Utils::WriteIntBE(void* vbuf, int val) {
 
 
 void* Utils::GetModuleBaseAddress(const char* dllname) {
-	if (!dllname)return NULL;
-	HANDLE hModuleSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, GetCurrentProcessId());
-	if (!hModuleSnap)return NULL;
-	WString wdllname = Utils::ToUTF16(dllname);
-	MODULEENTRY32 me32;
-	me32.dwSize = sizeof(MODULEENTRY32);
-	if (!Module32First(hModuleSnap, &me32)) {
-		CloseHandle(hModuleSnap);
-		return(FALSE);
-	}
-
-	do {
-		if (_wcsicmp(me32.szModule, wdllname.c_str()) == 0) {
-			CloseHandle(hModuleSnap);
-			return me32.modBaseAddr;
-		}
-	} while (Module32Next(hModuleSnap, &me32));
-	CloseHandle(hModuleSnap);
-	return NULL;
+	return GetModuleHandleA(dllname);
 }
 
 void* Utils::GetFunctionAddress(const char* dllname, const char* funcname) {
