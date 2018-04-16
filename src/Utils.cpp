@@ -261,6 +261,18 @@ String Utils::ToJsonFormat(intptr_t val, const String& type) {
 		}
 		ret += "\"";
 	}
+	else if (_stricmp(type.c_str(), "lstring") == 0) {
+		ret += "\"";
+		if (val) {
+			int len = *(int*)val;
+			char* str = (char*)(val + sizeof(void*));
+			if (len > 0 && str) {
+				String temp(str, len);
+				ret.append(Utils::EncodeString(temp));
+			}			
+		}
+		ret += "\"";
+	}
 	else if (_stricmp(type.c_str(), "float") == 0) {
 		float* pv = (float*)&val;
 		ret += std::to_string(*pv);

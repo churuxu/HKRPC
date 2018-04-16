@@ -59,13 +59,14 @@ protected:
 };
 
 
-//会话数据
+//会话数据，在close的时候自动删除
 class SessionData {
 public:
 	SessionData() {
 
 	}
 	~SessionData() {
+		RemoveAllMemory();
 		RemoveAllHookFilter();
 	}
 
@@ -73,7 +74,6 @@ public:
 		auto it = filters_.find(filter);
 		return it != filters_.end();
 	}
-
 	void AddHookAddrFilter(HKHookFilter* filter) {
 		filters_.insert(filter);
 	}
@@ -87,8 +87,28 @@ public:
 		}
 		filters_.clear();
 	}
+	
+	bool IsMemoryExist(void* mem) {
+		auto it = mems_.find(mem);
+		return it != mems_.end();
+	}
+	void AddMemory(void* mem) {
+		mems_.insert(mem);
+	}
+	void RemoveMemory(void* mem) {
+		mems_.erase(mem);
+		free(mem);
+	}
+	void RemoveAllMemory() {
+		for (auto mem : mems_) {
+			free(mem);
+		}
+		mems_.clear();
+	}
+
 protected:
-	std::set<HKHookFilter*> filters_;
+	std::set<HKHookFilter*> filters_; //该会话创建的hook filter
+	std::set<void*> mems_; //该会话分配的内存
 };
 
 
@@ -211,6 +231,52 @@ String ProcessModuleVersionRequest(ConnectionPtr conn, json_value* id, json_valu
 	result += "\"";
 	return MakeResultResponse(result.c_str(), id);
 }
+
+//分配内存（size int） 返回内存地址
+String ProcessMemoryAllocRequest(ConnectionPtr conn, json_value* id, json_value* params) {
+	int argc = params->u.array.length;
+	if (argc < 1)return MakeErrorResponse(-32600, "Invalid Request, no enough params", id);
+	json_int_t sz = *params->u.array.values[0];
+	if (sz<=0) {
+		return MakeErrorResponse(-32600, "Invalid Request, size must > 0", id);
+	}
+	void* mem = malloc(sz);
+	if (!mem) {
+		return MakeErrorResponse(-1, "Out of memory ", id);
+	}
+	sessions_[conn]->AddMemory(mem);
+	String result;	
+	result += std::to_string((intptr_t)mem);	
+	return MakeResultResponse(result.c_str(), id);
+}
+
+//释放内存（void* ptr）
+String ProcessMemoryFreeRequest(ConnectionPtr conn, json_value* id, json_value* params) {
+	int argc = params->u.array.length;
+	if (argc < 1)return MakeErrorResponse(-32600, "Invalid Request, no enough params", id);
+	json_int_t ptrv = *params->u.array.values[0];
+	void* mem = (void*)ptrv;
+	if (!sessions_[conn]->IsMemoryExist(mem)) {
+		return MakeErrorResponse(-32600, "Invalid Request, memory not found", id);
+	}
+	sessions_[conn]->RemoveMemory(mem);	
+	return MakeResultResponse("ok", id);
+}
+
+//写内存(void* ptr, data, type) 返回写了的字节数
+String ProcessMemoryWriteRequest(ConnectionPtr conn, json_value* id, json_value* params) {
+	int argc = params->u.array.length;
+	if (argc < 1)return MakeErrorResponse(-32600, "Invalid Request, no enough params", id);
+	json_int_t ptrv = *params->u.array.values[0];
+	void* mem = (void*)ptrv;
+	if (!sessions_[conn]->IsMemoryExist(mem)) {
+		return MakeErrorResponse(-32600, "Invalid Request, memory not found", id);
+	}
+	sessions_[conn]->RemoveMemory(mem);
+	return MakeResultResponse("ok", id);
+}
+
+
 
 //获取dll信息
 String ProcessModuleInfoRequest(ConnectionPtr conn, json_value* id, json_value* params) {

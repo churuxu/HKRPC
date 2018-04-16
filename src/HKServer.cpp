@@ -1,6 +1,6 @@
 #include "HKServer.h"
 #include "Utils.h"
-
+#include <mutex>
 
 #define MAX_CONNECTION 8
 #define MAX_EVENTS MAX_CONNECTION*2
@@ -25,7 +25,8 @@ public:
 	char buffer_[BUF_SIZE];
 	std::list<Buffer> sendqueue_;
 	Buffer sendbuf_;
-	
+	std::mutex lock_;
+
 	Connection(int index, HANDLE pipe, HANDLE revent, HANDLE wevent) {
 		memset(&overlapr_, 0, sizeof(OVERLAPPED));
 		memset(&overlapw_, 0, sizeof(OVERLAPPED));
@@ -44,7 +45,7 @@ public:
 
 #define WM_WAIT_OBJECT  (WM_USER+1)
 #define WM_SEND_DATA  (WM_USER+2)
-
+#define WM_READY  (WM_USER+3)
 
 class HKServerImpl :public HKServer {
 protected:
@@ -54,6 +55,7 @@ protected:
 	ConnectionHandler onclose_;
 	ConnectionDataHandler ondata_;
 	HWND handler_;
+	
 public:
 	HKServerImpl() {
 		memset(conns_, 0, sizeof(conns_));
@@ -77,9 +79,15 @@ public:
 	}
 
 	virtual void sendData(ConnectionPtr connid, const Buffer& data) {
-		if (connid >= 0 && connid < MAX_CONNECTION && data.length()) {
-			SendMessage(handler_, WM_SEND_DATA, connid, (LPARAM)&data);
-		}
+		Connection* conn = conns_[connid];
+		if (!conn)return;
+		conn->lock_.lock();
+		conn->sendqueue_.push_back(data);
+		conn->lock_.unlock();
+
+		//if (connid >= 0 && connid < MAX_CONNECTION && data.length()) {
+		PostMessage(handler_, WM_READY, (WPARAM)this, (LPARAM)connid);
+		//}
 	}
 
 	bool CreateInstances() {
@@ -142,19 +150,25 @@ public:
 		return true;
 	}
 
-	bool StartWrite(Connection* conn, DWORD remainlen = 0) {		
+	bool StartWrite(Connection* conn, DWORD remainlen = 0) {
+		const char* packdata = nullptr;
+		conn->lock_.lock();
 		if (remainlen || conn->sendqueue_.size()) { //上次未发送完，或者发送队列里有数据
 			conn->sending_ = true;
-			const char* packdata = conn->sendbuf_.c_str() + remainlen;
+			packdata = conn->sendbuf_.c_str() + remainlen;
 			if (!remainlen) {
 				conn->sendbuf_ = conn->sendqueue_.front();
 				conn->sendqueue_.pop_front();
 				remainlen = conn->sendbuf_.length();
 				packdata = conn->sendbuf_.c_str();
 			}
-			
+
 			conn->towrite_ = remainlen;
 			conn->writed_ = 0;
+		}
+		conn->lock_.unlock();
+
+		if(packdata){
 			BOOL bret = WriteFile(conn->pipe_, packdata, conn->towrite_, &conn->writed_, &conn->overlapw_);
 			if (bret) {
 				//发送直接完成
@@ -276,6 +290,11 @@ public:
 		if (msg == WM_WAIT_OBJECT) {
 			HKServerImpl* pthis = (HKServerImpl*)wp;
 			pthis->OnThreadWaited(lp);
+		}else if (msg == WM_READY) {
+			HKServerImpl* pthis = (HKServerImpl*)wp;
+			int connid = (int)lp;
+			Connection* conn = pthis->conns_[connid];
+			pthis->StartWrite(conn);
 		}
 		else if (msg == WM_SEND_DATA) {
 			HKServerImpl* pthis = (HKServerImpl*)HKServer::getInstance();
