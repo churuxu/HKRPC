@@ -16,3 +16,4 @@ set DLLFILE="%CD%\vs2015\%CFG%\HKRPC.dll"
 
 cd %THIS_DIR%
 
+node wxlogview.js
